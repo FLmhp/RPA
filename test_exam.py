@@ -1,4 +1,4 @@
-import base64, hashlib, re, sys, time
+import base64, re, sys, time
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -7,11 +7,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from settings_store import load_settings
 
 BASE_URL = "https://dxpx.uestc.edu.cn"
-USERNAME = "2024090906010"
-PASSWORD = "kD-7VXkCAGt7AEE"
-DEEPSEEK_KEY = "sk-88da5667472d4611a521faab31efb1ea"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 DEEPSEEK_MODEL = "deepseek-v4-flash"
 
@@ -22,6 +20,11 @@ CSS_VIDEO_PLAY_BTN = "#wrapper > div > div.plyr__controls > button:nth-child(1)"
 
 
 class ExamTester:
+    def __init__(self, username: str, password: str, deepseek_key: str):
+        self.username = username
+        self.password = password
+        self.deepseek_key = deepseek_key
+
     def start_browser(self):
         print("[*] 启动浏览器", flush=True)
         options = Options()
@@ -36,10 +39,10 @@ class ExamTester:
         print("[*] 登录中...", flush=True)
         driver.get(f"{BASE_URL}/login/")
         time.sleep(2)
-        driver.find_element(By.CSS_SELECTOR, "input[type='text']").send_keys(USERNAME)
+        driver.find_element(By.CSS_SELECTOR, "input[type='text']").send_keys(self.username)
         p = driver.find_elements(By.CSS_SELECTOR, "input[type='password']")
         if p:
-            p[0].send_keys(PASSWORD)
+            p[0].send_keys(self.password)
         ci = driver.find_element(By.CSS_SELECTOR, "input[placeholder='验证码']")
         cimg = driver.find_element(By.CSS_SELECTOR, ".login_piccheck_img")
         ocr = ddddocr.DdddOcr(show_ad=False)
@@ -90,7 +93,7 @@ class ExamTester:
                 resp = requests.post(
                     DEEPSEEK_URL,
                     headers={
-                        "Authorization": f"Bearer {DEEPSEEK_KEY}",
+                        "Authorization": f"Bearer {self.deepseek_key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -259,12 +262,25 @@ class ExamTester:
             return None
 
 
+def load_runtime_settings() -> tuple[str, str, str]:
+    settings = load_settings()
+    username = settings.get("username", "").strip()
+    password = settings.get("password", "").strip()
+    deepseek_key = settings.get("deepseek_key", "").strip()
+    if not username or not password or not deepseek_key:
+        raise RuntimeError(
+            "缺少本地配置。请先运行 main.py，在界面中填写用户名、密码和 DeepSeek API Key 并保存。"
+        )
+    return username, password, deepseek_key
+
+
 def main():
     print("=" * 60, flush=True)
     print("  DeepSeek 自动答题测试", flush=True)
     print("=" * 60, flush=True)
 
-    tester = ExamTester()
+    username, password, deepseek_key = load_runtime_settings()
+    tester = ExamTester(username, password, deepseek_key)
     driver = tester.start_browser()
     try:
         tester.login(driver)
@@ -288,4 +304,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as exc:
+        print(f"[FAIL] {exc}", flush=True)
+        sys.exit(1)

@@ -12,11 +12,10 @@ from urllib.parse import urljoin
 import ddddocr
 import requests
 from requests.adapters import HTTPAdapter
+from settings_store import load_settings
 from urllib3.util.retry import Retry
 
 BASE_URL = "https://dxpx.uestc.edu.cn"
-USERNAME = "2024090906010"
-PASSWORD = "kD-7VXkCAGt7AEE"
 OUTPUT_DIR = Path(__file__).parent / "discover_output"
 
 PAGES_DIR = OUTPUT_DIR / "pages"
@@ -49,6 +48,15 @@ def create_session() -> requests.Session:
     return session
 
 
+def load_credentials() -> tuple[str, str]:
+    settings = load_settings()
+    username = settings.get("username", "").strip()
+    password = settings.get("password", "").strip()
+    if not username or not password:
+        raise RuntimeError("缺少本地配置。请先运行 main.py 并保存用户名和密码。")
+    return username, password
+
+
 def login(session: requests.Session) -> dict[str, Any]:
     print("[*] Initializing ddddocr...")
     ocr = ddddocr.DdddOcr(show_ad=False)
@@ -57,7 +65,8 @@ def login(session: requests.Session) -> dict[str, Any]:
     print("[*] Visiting login page...")
     session.get(f"{BASE_URL}/login/", timeout=15)
 
-    hashed_pass = sha1_hex(PASSWORD)
+    username, password = load_credentials()
+    hashed_pass = sha1_hex(password)
     access_token = None
 
     for attempt in range(1, 11):
@@ -71,7 +80,7 @@ def login(session: requests.Session) -> dict[str, Any]:
 
         resp = session.post(
             f"{BASE_URL}/api/v1/public/login",
-            data={"u_name": USERNAME, "u_pass": hashed_pass, "v_code": captcha, "next_url": "", "app_id": ""},
+            data={"u_name": username, "u_pass": hashed_pass, "v_code": captcha, "next_url": "", "app_id": ""},
             headers={"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
             timeout=15,
         )
@@ -391,4 +400,8 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as exc:
+        print(f"[-] {exc}")
+        sys.exit(1)

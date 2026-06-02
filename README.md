@@ -10,24 +10,26 @@
 <h1 align="center">🎓 RPA · 党课自动学习助手</h1>
 
 <p align="center">
-  <i>Party School Automated Learning Assistant</i>
+  <i>Red Party Assistant</i>
 </p>
 
 <p align="center">
   <sub>基于 ddddocr 验证码识别 · Selenium 浏览器自动化 · DeepSeek V4-Flash AI 答题</sub>
 </p>
 
-<!-- README-I18N:START -->
+---
 
-**English** | [汉语](./README.zh.md)
+## 📌 命名说明
 
-<!-- README-I18N:END -->
+`RPA` 的命名灵感来自 `Red Party Assistant`。
+
+它巧妙借用了业界常见的 `Robotic Process Automation` 缩写，在保留“自动化助手”语义的同时，赋予项目“红色党务助手”的新含义，是这个项目最核心的品牌双关。
 
 ---
 
-## 📸 功能概览 | Features
+## 📸 功能概览
 
-| 功能 Feature | 描述 Description |
+| 功能 | 描述 |
 |-------------|-----------------|
 | 🔐 自动登录 | ddddocr 识别验证码，SHA1 密码加密，PySide6 现代化 GUI |
 | 📺 视频自动播放 | 遍历必修课程，静音播放所有视频片段，自动跳过已完成内容 |
@@ -38,12 +40,12 @@
 
 ---
 
-## 🚀 快速开始 | Quick Start
+## 🚀 快速开始
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/yourname/party-school-automation.git
-cd party-school-automation
+git clone https://github.com/FLmhp/RPA.git
+cd RPA
 
 # 2. 安装依赖
 pip install -r requirements.txt
@@ -56,41 +58,67 @@ python main.py
 
 ---
 
-## 📁 项目结构 | Project Structure
+## 🔐 本地配置与隐私
 
-```
-├── main.py           # 🎯 主程序 — PySide6 GUI + Selenium 自动化
-├── test_exam.py      # 🧪 独立测试 — DeepSeek AI 答题验证工具
-├── discover.py       # 🔍 探针工具 — API 端点与页面结构分析
-├── requirements.txt  # 📦 依赖清单
-├── colours.xml       # 🎨 配色参考
-├── settings.json     # 🔑 用户凭据（自动生成，已 gitignore）
+- 项目不再内置任何默认 `DeepSeek API Key`、用户名、密码。
+- 首次运行时，用户需要在 GUI 中手动输入：
+  - 用户名
+  - 密码
+  - `DeepSeek API Key`
+- 勾选“保存本地配置”后，程序会将信息写入本地 `settings.json`。
+- `settings.json` 已加入 `.gitignore`，不会被提交到仓库。
+- 仓库提供 `settings.example.json` 作为示例模板，便于查看配置结构。
+
+---
+
+## 📁 项目结构
+
+```text
+├── main.py                # 主程序：PySide6 GUI + Selenium 自动化
+├── test_exam.py           # AI 答题测试脚本（读取本地配置）
+├── settings_store.py      # 本地配置读写
+├── settings.example.json  # 本地配置模板
+├── discover.py            # 页面与接口探针
+├── requirements.txt       # 依赖清单
+├── colours.xml            # 配色参考
 └── .gitignore
 ```
 
 ---
 
-## 🔧 核心配置 | Core Config
+## 🔧 核心配置
 
-| 变量 Variable | 说明 Description |
-|--------------|-----------------|
-| `BASE_URL` | 平台地址 `https://dxpx.uestc.edu.cn` |
-| `USERNAME` / `PASSWORD` | 学号/密码（GUI 中填写并保存到 `settings.json`） |
-| `DEEPSEEK_KEY` | DeepSeek API Key |
-| `DEEPSEEK_MODEL` | 模型名称 `deepseek-v4-flash` |
-| `VIDEO_SECONDS` | 每个视频片段最低观看时长（默认 300s） |
+本地 `settings.json` 结构如下：
+
+```json
+{
+  "username": "",
+  "password": "",
+  "deepseek_key": "",
+  "remember": false
+}
+```
+
+说明：
+
+| 字段 | 说明 |
+|------|------|
+| `username` | 平台登录用户名 |
+| `password` | 平台登录密码 |
+| `deepseek_key` | DeepSeek API Key |
+| `remember` | 是否保存本地配置 |
 
 ---
 
-## 🧠 AI 答题引擎 | AI Exam Engine
+## 🧠 AI 答题引擎
 
-通过 DeepSeek V4-Flash API 自动解答党课自测题目：
+项目通过 DeepSeek V4-Flash API 自动解答党课自测题目：
 
-| 题型 Type | 数量 Count | 分值 Score |
+| 题型 | 数量 | 分值 |
 |-----------|-----------|-----------|
-| 单选题 Single-choice | 10 | 50 |
-| 多选题 Multi-choice | 5 | 25 |
-| 判断题 True/False | 5 | 25 |
+| 单选题 | 10 | 50 |
+| 多选题 | 5 | 25 |
+| 判断题 | 5 | 25 |
 
 - **API**: `https://api.deepseek.com/chat/completions`
 - **模型**: `deepseek-v4-flash`（temperature=0，thinking=disabled）
@@ -103,7 +131,7 @@ python test_exam.py
 
 ---
 
-## 🎨 界面预览 | UI Preview
+## 🎨 界面预览
 
 - 深色主题（红汞红配色方案）
 - Windows 亚克力模糊效果
@@ -112,9 +140,9 @@ python test_exam.py
 
 ---
 
-## 📋 运行流程 | Execution Flow
+## 📋 运行流程
 
-```
+```text
 登录 (ddddocr OCR)
   │
   ├─ Phase 1: _video_phase()
@@ -134,9 +162,9 @@ python test_exam.py
 
 ---
 
-## 🛠️ 依赖 | Dependencies
+## 🛠️ 依赖
 
-```
+```text
 ddddocr>=1.6.0          # 验证码识别
 selenium>=4.15.0         # 浏览器自动化
 PySide6>=6.5.0           # GUI 框架
@@ -147,12 +175,20 @@ Pillow>=10.0.0           # 图像处理
 
 ---
 
-## 📄 许可 | License
+## 📄 安全说明
+
+- 本仓库默认不包含任何真实账号、密码或 API Key。
+- 请勿提交本地 `settings.json`。
+- 如果历史版本曾使用过真实凭据，建议对应凭据已经轮换后再公开分享仓库。
+
+---
+
+## 📄 许可
 
 MIT © 2025
 
 ---
 
 <p align="center">
-  <sub>Made with ❤️ for party school students</sub>
+  <sub>RPA = Red Party Assistant</sub>
 </p>

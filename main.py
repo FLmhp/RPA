@@ -1,13 +1,11 @@
 import base64
 import ctypes
 import hashlib
-import json
 import re
 import sys
 import time
 
 sys.stdout.reconfigure(encoding="utf-8")
-from pathlib import Path
 
 import ddddocr
 import requests
@@ -31,9 +29,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (
     TimeoutException, WebDriverException, NoSuchWindowException,
 )
+from settings_store import load_settings, save_settings
 
 BASE_URL = "https://dxpx.uestc.edu.cn"
-SETTINGS_FILE = Path(__file__).parent / "settings.json"
 DEFAULT_COURSE_TOTAL = 11
 DEFAULT_VIDEO_TOTAL = 10
 
@@ -66,30 +64,11 @@ CSS_VIDEO_TIME = 'div[aria-label="Current time"]'
 CSS_VIDEO_END_FLAG = "#wrapper > div > div.plyr__controls > div.plyr__controls__item.plyr__menu > button > span"
 CSS_SIDEBAR_LINKS = "a[style]"
 
-DEEPSEEK_KEY = "sk-88da5667472d4611a521faab31efb1ea"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 DEEPSEEK_MODEL = "deepseek-v4-flash"
 
 PAGE_LOAD_RETRIES = 3
 PAGE_LOAD_SLEEP = 2
-
-
-def load_settings() -> dict:
-    if SETTINGS_FILE.exists():
-        try:
-            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
-
-
-def save_settings(username: str, password: str, remember: bool) -> None:
-    data = {
-        "username": username if remember else "",
-        "password": password if remember else "",
-        "remember": remember,
-    }
-    SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 class WatcherWorker(QThread):
@@ -106,10 +85,11 @@ class WatcherWorker(QThread):
     finished = Signal()
     login_failed = Signal(str)
 
-    def __init__(self, username: str, password: str):
+    def __init__(self, username: str, password: str, deepseek_key: str):
         super().__init__()
         self.username = username
         self.password = password
+        self.deepseek_key = deepseek_key
         self._stop = False
 
     def stop(self):
@@ -301,7 +281,7 @@ class WatcherWorker(QThread):
                 resp = requests.post(
                     DEEPSEEK_URL,
                     headers={
-                        "Authorization": f"Bearer {DEEPSEEK_KEY}",
+                        "Authorization": f"Bearer {self.deepseek_key}",
                         "Content-Type": "application/json",
                     },
                     json={
@@ -852,10 +832,20 @@ class MainWindow(QMainWindow):
         self.password_input.setMinimumWidth(160)
         row1.addWidget(self.password_input)
 
-        self.remember_check = QCheckBox("记住密码")
-        row1.addWidget(self.remember_check)
-        row1.addStretch()
         card_layout.addLayout(row1)
+
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel("API Key"))
+        self.deepseek_key_input = QLineEdit()
+        self.deepseek_key_input.setPlaceholderText("请输入 DeepSeek API Key")
+        self.deepseek_key_input.setEchoMode(QLineEdit.Password)
+        self.deepseek_key_input.setMinimumWidth(420)
+        row2.addWidget(self.deepseek_key_input)
+
+        self.remember_check = QCheckBox("保存本地配置")
+        row2.addWidget(self.remember_check)
+        row2.addStretch()
+        card_layout.addLayout(row2)
 
         layout.addWidget(card)
 
@@ -1111,8 +1101,9 @@ class MainWindow(QMainWindow):
             self.username_input.setText(s["username"])
         if s.get("password"):
             self.password_input.setText(s["password"])
-        if s.get("remember"):
-            self.remember_check.setChecked(True)
+        if s.get("deepseek_key"):
+            self.deepseek_key_input.setText(s["deepseek_key"])
+        self.remember_check.setChecked(bool(s.get("remember")))
 
     def _append_log(self, msg: str):
         self.log_output.moveCursor(QTextCursor.End)
@@ -1123,11 +1114,12 @@ class MainWindow(QMainWindow):
     def _on_start(self):
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
-        if not username or not password:
-            QMessageBox.warning(self, "提示", "请输入用户名和密码")
+        deepseek_key = self.deepseek_key_input.text().strip()
+        if not username or not password or not deepseek_key:
+            QMessageBox.warning(self, "提示", "请输入用户名、密码和 DeepSeek API Key")
             return
 
-        save_settings(username, password, self.remember_check.isChecked())
+        save_settings(username, password, deepseek_key, self.remember_check.isChecked())
 
         self.start_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)
@@ -1144,7 +1136,7 @@ class MainWindow(QMainWindow):
         self.exam_count_label.setText("—")
         self.log_output.clear()
 
-        self.worker = WatcherWorker(username, password)
+        self.worker = WatcherWorker(username, password, deepseek_key)
         self.worker.log_msg.connect(self._append_log)
         self.worker.course_start.connect(self._on_course_start)
         self.worker.course_done.connect(self._on_course_done)
